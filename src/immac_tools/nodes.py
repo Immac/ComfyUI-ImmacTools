@@ -5,19 +5,25 @@ import torch
 
 class ConcatenateSigmasNode(io.ComfyNode):
     """
-    An example node
+    ConcatenateSigmasNode
+    A ComfyUI-compatible node that concatenates two "sigmas" inputs into a single 1D sigma tensor.
 
-    Class methods
-    -------------
-    define_schema (io.Schema):
-        Tell the main program the metadata, input, output parameters of nodes.
-    fingerprint_inputs:
-        optional method to control when the node is re executed.
-    check_lazy_status:
-        optional method to control list of input names that need to be evaluated.
+    Inputs:
+    - sigmas_1: torch.Tensor or tensor-like (1D or scalar). May be None.
+    - sigmas_2: torch.Tensor or tensor-like (1D or scalar). May be None.
 
+    Output:
+    - io.NodeOutput containing the concatenated torch.Tensor, or the single non-None input, or None if both inputs are None.
+
+    Notes and edge cases:
+    - If inputs have more than 1 dimension, concatenation occurs along the first dimension; the remaining dimensions must match.
+    - If inputs are on different devices or have incompatible dtypes/shapes, torch.cat will raise an error. Convert or move tensors to a common device/dtype before feeding them to this node if necessary.
+    - The node's check_lazy_status does not request any additional lazy evaluation; all provided inputs are processed directly.
+
+    Examples:
+    - Given sigmas_1 = torch.tensor([0.1, 0.2]) and sigmas_2 = torch.tensor([0.3]), the output is tensor([0.1, 0.2, 0.3]).
+    - Given sigmas_1 = 0.5 (scalar) and sigmas_2 = [0.6, 0.7], the output is tensor([0.5, 0.6, 0.7]) after conversion and unsqueezing.
     """
-
     @classmethod
     def define_schema(cls) -> io.Schema:
         """
