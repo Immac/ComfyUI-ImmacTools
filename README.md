@@ -1,67 +1,48 @@
-# Immac's Tools
 
-A collection of Nodes for personal use.
+# Immac Tools
 
-> [!NOTE]
-> This projected was created with a [cookiecutter](https://github.com/Comfy-Org/cookiecutter-comfy-extension) template. It helps you start writing custom nodes without worrying about the Python setup.
+A small collection of ComfyUI extension nodes created for personal use.
 
-## Quickstart
+## Quick summary
 
-1. Install [ComfyUI](https://docs.comfy.org/get_started).
-1. Install [ComfyUI-Manager](https://github.com/ltdrdata/ComfyUI-Manager)
-1. Look up this extension in ComfyUI-Manager. If you are installing manually, clone this repository under `ComfyUI/custom_nodes`.
-1. Restart ComfyUI.
+- Package: `immac_tools`
+- Purpose: ComfyUI extension providing utility nodes.
 
-# Features
+## Installation
 
-- A list of features
+This repository is intended to be used as a ComfyUI custom node. Install it by one of the following methods:
 
-## Develop
+A) ComfyUI Manager (When/If published)
 
-To install the dev dependencies and pre-commit (will run the ruff hook), do:
+- Use ComfyUI's built-in extension/manager (if available) to add this repo directly by URL. The manager will clone the repository into the appropriate `custom_nodes` folder and keep it updated.
+
+B) Clone into your ComfyUI `custom_nodes` folder
+
+1. From your ComfyUI repository root (or wherever you keep custom nodes), clone this repo into the `custom_nodes` directory:
 
 ```bash
-cd immac_tools
-pip install -e .[dev]
-pre-commit install
+# Example (from ComfyUI repo root)
+git clone https://github.com/Immac/immac_tools custom_nodes/immac_tools
 ```
 
-The `-e` flag above will result in a "live" install, in the sense that any changes you make to your node extension will automatically be picked up the next time you run ComfyUI.
+2. Restart ComfyUI. The extension's `comfy_entrypoint` should be discovered and the nodes will appear in the node list.
 
-## Publish to Github
+## Nodes included
 
-Install Github Desktop or follow these [instructions](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent) for ssh.
+The repository includes the following nodes (see `src/immac_tools/nodes.py` for implementation):
 
-1. Create a Github repository that matches the directory name. 
-2. Push the files to Git
-```
-git add .
-git commit -m "project scaffolding"
-git push
-``` 
+- Concatenate Sigmas Node (`ConcatenateSigmasImmacTools` / display name: `Concatenate Sigmas Node`)
+  - Category: Example
+  - Inputs: `sigmas_1`, `sigmas_2` (sigma schedules as tensors or lists)
+  - Outputs: concatenated sigma schedule
+  - Behavior: concatenates two sigma schedules, tolerating None inputs and non-torch objects by converting them to tensors.
 
-## Writing custom nodes
+- Splice Sigmas At % (`SpliceSigmasAtImmacTools` / display name: `Splice Sigmas At %`)
+  - Category: Example
+  - Inputs: `sigmas_a`, `sigmas_b`, `splice` (float 0.0 - 1.0)
+  - Outputs: `spliced_sigmas` (full), `first_part`, `second_part`
+  - Behavior: picks a boundary on `sigmas_a` based on `splice` and combines `sigmas_a` and `sigmas_b` around that boundary. Accepts tensor or list inputs.
 
-An example custom node is located in [node.py](src/immac_tools/nodes.py). To learn more, read the [docs](https://docs.comfy.org/essentials/custom_node_overview).
+## License & contact
 
-
-## Tests
-
-This repo contains unit tests written in Pytest in the `tests/` directory. It is recommended to unit test your custom node.
-
-- [build-pipeline.yml](.github/workflows/build-pipeline.yml) will run pytest and linter on any open PRs
-- [validate.yml](.github/workflows/validate.yml) will run [node-diff](https://github.com/Comfy-Org/node-diff) to check for breaking changes
-
-## Publishing to Registry
-
-If you wish to share this custom node with others in the community, you can publish it to the registry. We've already auto-populated some fields in `pyproject.toml` under `tool.comfy`, but please double-check that they are correct.
-
-You need to make an account on https://registry.comfy.org and create an API key token.
-
-- [ ] Go to the [registry](https://registry.comfy.org). Login and create a publisher id (everything after the `@` sign on your registry profile). 
-- [ ] Add the publisher id into the pyproject.toml file.
-- [ ] Create an api key on the Registry for publishing from Github. [Instructions](https://docs.comfy.org/registry/publishing#create-an-api-key-for-publishing).
-- [ ] Add it to your Github Repository Secrets as `REGISTRY_ACCESS_TOKEN`.
-
-A Github action will run on every git push. You can also run the Github action manually. Full instructions [here](https://docs.comfy.org/registry/publishing). Join our [discord](https://discord.com/invite/comfyorg) if you have any questions!
-
+MIT — see `LICENSE`. For questions or issues open an issue at the repository: https://github.com/Immac/immac_tools
