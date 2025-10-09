@@ -17,8 +17,6 @@ dependencies = [
 
 ]
 
-
-
 [project.optional-dependencies]
 dev = [
     "bump-my-version",
@@ -38,7 +36,7 @@ Documentation = "https://github.com/Immac/immac_tools/wiki"
 [tool.comfy]
 PublisherId = "Immac"
 DisplayName = "Immac's Tools"
-Icon = ""
+Icon = "🔧"
 Tags = []
 Repository = "https://github.com/Immac/immac_tools"
 
