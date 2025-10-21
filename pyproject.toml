@@ -34,9 +34,9 @@ Documentation = "https://github.com/Immac/ComfyUI-ImmacTools/wiki"
 
 
 [tool.comfy]
-PublisherId = "@immac"
+PublisherId = "immac"
 DisplayName = "Immac's Tools"
-Icon = "🧰"
+Icon = ""
 Tags = ["sigmas"]
 Repository = "https://github.com/Immac/ComfyUI-ImmacTools"
 

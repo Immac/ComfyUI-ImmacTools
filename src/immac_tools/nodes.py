@@ -1,7 +1,7 @@
 from typing_extensions import override
 
 from comfy_api.latest import ComfyExtension, io
-from .forwarding_nodes import ForwardAnyNode, ForwardConditioningNode
+from .forwarding_nodes import ForwardAnyNode, ForwardConditioningNode, ForwardModelNode
 import torch
 
 class ConcatenateSigmasNode(io.ComfyNode):
@@ -392,6 +392,7 @@ class ExampleExtension(ComfyExtension):
                 ResampleSigmas,
             ForwardAnyNode,
             ForwardConditioningNode,
+            ForwardModelNode,
         ]
 
 async def comfy_entrypoint() -> ExampleExtension:  # ComfyUI calls this to load your extension and its nodes.
