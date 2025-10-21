@@ -28,9 +28,9 @@ dev = [
 ]
 
 [project.urls]
-Repository = "https://github.com/Immac/immac_tools"
-BugTracker = "https://github.com/Immac/immac_tools/issues"
-Documentation = "https://github.com/Immac/immac_tools/wiki"
+Repository = "https://github.com/Immac/ComfyUI-ImmacTools"
+BugTracker = "https://github.com/Immac/ComfyUI-ImmacTools/issues"
+Documentation = "https://github.com/Immac/ComfyUI-ImmacTools/wiki"
 
 
 [tool.comfy]
@@ -38,7 +38,7 @@ PublisherId = "Immac"
 DisplayName = "Immac's Tools"
 Icon = "🔧"
 Tags = []
-Repository = "https://github.com/Immac/immac_tools"
+Repository = "https://github.com/Immac/ComfyUI-ImmacTools"
 
 includes = []
 
