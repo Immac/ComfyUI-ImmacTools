@@ -3,7 +3,7 @@ requires = ["setuptools>=70.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "immac_tools"
+name = "ComfyUI-ImmacTools"
 version = "0.0.2"
 description = "A collection of Nodes for personal use."
 authors = [
@@ -34,7 +34,7 @@ Documentation = "https://github.com/Immac/ComfyUI-ImmacTools/wiki"
 
 
 [tool.comfy]
-PublisherId = "Immac"
+PublisherId = "@immac"
 DisplayName = "Immac's Tools"
 Icon = "🧰"
 Tags = ["sigmas"]
