@@ -36,8 +36,8 @@ Documentation = "https://github.com/Immac/ComfyUI-ImmacTools/wiki"
 [tool.comfy]
 PublisherId = "Immac"
 DisplayName = "Immac's Tools"
-Icon = "🔧"
-Tags = []
+Icon = "🧰"
+Tags = ["sigmas"]
 Repository = "https://github.com/Immac/ComfyUI-ImmacTools"
 
 includes = []
