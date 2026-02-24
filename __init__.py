@@ -8,7 +8,7 @@ __all__ = [
 
 __author__ = """Immac"""
 __email__ = "immac.gm@gmail.com"
-__version__ = "0.0.1"
+__version__ = "0.0.4"
 __title__ = "Immac Tools"
 __description__ = "A collection of Nodes for personal use."
 __icon_ = "🧰"

@@ -3,7 +3,7 @@
 This module exposes the node registration mappings and the `WEB_DIRECTORY`
 constant expected by ComfyUI web extensions.
 """
-from .nodes import ConcatenateSigmasNode, SpliceSigmasAtNode, ResampleSigmas, SkipEveryNthImages
+from .nodes import ConcatenateSigmasNode, SpliceSigmasAtNode, ResampleSigmas, SkipEveryNthImages, MatchContrastNode
 from .forwarding_nodes import ForwardAnyNode, ForwardConditioningNode, ForwardModelNode
 
 # Mapping from node_id to node class
@@ -12,6 +12,7 @@ NODE_CLASS_MAPPINGS: dict[str, type] = {
     "SpliceSigmasAtImmacTools": SpliceSigmasAtNode,
     "ResampleSigmasImmacTools": ResampleSigmas,
     "SkipEveryNthImagesImmacTools": SkipEveryNthImages,
+    "MatchContrastImmacTools": MatchContrastNode,
     "ForwardAnyImmacTools": ForwardAnyNode,
     "ForwardConditioningImmacTools": ForwardConditioningNode,
     "ForwardModelImmacTools": ForwardModelNode,
@@ -23,6 +24,7 @@ NODE_DISPLAY_NAME_MAPPINGS: dict[str, str] = {
     "SpliceSigmasAtImmacTools": "Splice Sigmas At Node",
     "ResampleSigmasImmacTools": "Resample Sigmas",
     "SkipEveryNthImagesImmacTools": "Skip Every Nth Image",
+    "MatchContrastImmacTools": "Match Contrast",
     "ForwardAnyImmacTools": "Forward Any",
     "ForwardConditioningImmacTools": "Forward Conditioning",
     "ForwardModelImmacTools": "Forward Model",

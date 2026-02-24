@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ComfyUI-ImmacTools"
-version = "0.0.3"
+version = "0.0.4"
 description = "A collection of Nodes for personal use."
 authors = [
   {name = "Immac", email = "immac.gm@gmail.com"}
@@ -42,6 +42,12 @@ Repository = "https://github.com/Immac/ComfyUI-ImmacTools"
 
 includes = []
 
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
 [tool.setuptools.package-data]
 "*" = ["*.*"]
 
@@ -69,7 +75,7 @@ disable_error_code = "attr-defined"
 # extend-exclude = ["static", "ci/templates"]
 line-length = 140
 src = ["src", "tests"]
-target-version = "py39"
+target-version = "py310"
 
 # Add rules to ban exec/eval
 [tool.ruff.lint]

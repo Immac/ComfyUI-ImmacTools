@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from comfy_api.latest import ComfyExtension, io
 from .forwarding_nodes import ForwardAnyNode, ForwardConditioningNode, ForwardModelNode
 import torch
+import numpy as np
 
 class ConcatenateSigmasNode(io.ComfyNode):
     """
@@ -447,6 +448,218 @@ class SkipEveryNthImages(io.ComfyNode):
         return io.NodeOutput(images, [])
 
 
+# ---------------------------------------------------------------------------
+# Histogram matching helpers
+# ---------------------------------------------------------------------------
+
+def _match_histograms_channel(src: np.ndarray, ref: np.ndarray) -> np.ndarray:
+    """Match the histogram of *src* to that of *ref*.
+
+    Both arrays must be float32 in [0, 1] and can have any shape.
+    The mapping is built by aligning the cumulative distribution functions (CDFs)
+    of the two arrays.  We quantise to uint16 (65 536 levels) which gives
+    sub-0.002 % precision while keeping the LUT small and fast.
+
+    Returns a float32 array with the same shape as *src*.
+    """
+    src_u = np.clip(np.round(src * 65535.0), 0, 65535).astype(np.uint16)
+    ref_u = np.clip(np.round(ref * 65535.0), 0, 65535).astype(np.uint16)
+
+    src_hist = np.bincount(src_u.ravel(), minlength=65536)
+    ref_hist = np.bincount(ref_u.ravel(), minlength=65536)
+
+    src_cdf = np.cumsum(src_hist, dtype=np.float64) / float(src_u.size)
+    ref_cdf = np.cumsum(ref_hist, dtype=np.float64) / float(ref_u.size)
+
+    # For each source quantisation level, find the reference level whose CDF
+    # value is closest (i.e. has the same mass to the left).
+    lut = np.searchsorted(ref_cdf, src_cdf, side="left")
+    lut = np.clip(lut, 0, 65535).astype(np.uint16)
+
+    matched_u = lut[src_u]
+    return matched_u.astype(np.float32) / 65535.0
+
+
+# ---- pure-numpy sRGB <-> linear <-> XYZ <-> LAB helpers (D65) ----
+
+def _srgb_to_linear(c: np.ndarray) -> np.ndarray:
+    return np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
+
+def _linear_to_srgb(c: np.ndarray) -> np.ndarray:
+    c = np.clip(c, 0.0, 1.0)
+    return np.where(c <= 0.0031308, c * 12.92, 1.055 * c ** (1.0 / 2.4) - 0.055)
+
+_M_RGB_TO_XYZ = np.array([
+    [0.4124564, 0.3575761, 0.1804375],
+    [0.2126729, 0.7151522, 0.0721750],
+    [0.0193339, 0.1191920, 0.9503041],
+], dtype=np.float64)
+
+_M_XYZ_TO_RGB = np.array([
+    [ 3.2404542, -1.5371385, -0.4985314],
+    [-0.9692660,  1.8760108,  0.0415560],
+    [ 0.0556434, -0.2040259,  1.0572252],
+], dtype=np.float64)
+
+_D65 = np.array([0.95047, 1.00000, 1.08883], dtype=np.float64)
+
+
+def _f_lab(t: np.ndarray) -> np.ndarray:
+    delta = 6.0 / 29.0
+    return np.where(t > delta ** 3, np.cbrt(t), t / (3.0 * delta ** 2) + 4.0 / 29.0)
+
+
+def _f_lab_inv(t: np.ndarray) -> np.ndarray:
+    delta = 6.0 / 29.0
+    return np.where(t > delta, t ** 3, 3.0 * delta ** 2 * (t - 4.0 / 29.0))
+
+
+def _rgb_to_lab(img: np.ndarray) -> np.ndarray:
+    """Convert [H, W, 3] float32 sRGB image to CIE LAB."""
+    lin = _srgb_to_linear(img.astype(np.float64))
+    xyz = lin @ _M_RGB_TO_XYZ.T
+    xyz_n = xyz / _D65
+    f = _f_lab(xyz_n)
+    L = 116.0 * f[..., 1] - 16.0
+    a = 500.0 * (f[..., 0] - f[..., 1])
+    b = 200.0 * (f[..., 1] - f[..., 2])
+    return np.stack([L, a, b], axis=-1).astype(np.float32)
+
+
+def _lab_to_rgb(lab: np.ndarray) -> np.ndarray:
+    """Convert [H, W, 3] float32 CIE LAB image to sRGB [0, 1] float32."""
+    lab64 = lab.astype(np.float64)
+    L, a, b = lab64[..., 0], lab64[..., 1], lab64[..., 2]
+    fy = (L + 16.0) / 116.0
+    fx = a / 500.0 + fy
+    fz = fy - b / 200.0
+    xyz = np.stack([_f_lab_inv(fx), _f_lab_inv(fy), _f_lab_inv(fz)], axis=-1) * _D65
+    lin = xyz @ _M_XYZ_TO_RGB.T
+    return np.clip(_linear_to_srgb(lin), 0.0, 1.0).astype(np.float32)
+
+
+class MatchContrastNode(io.ComfyNode):
+    """
+    MatchContrastNode
+
+    Adjusts the contrast (tonal distribution) of *image* to match that of
+    *reference* using CDF-based histogram matching.
+
+    Inputs:
+        image     – the image whose contrast will be adjusted  [B, H, W, C]
+        reference – the image whose contrast is the target      [B, H, W, C]
+        channel_mode:
+            "rgb"       – match each R/G/B channel independently
+            "luminance" – match only the L channel in CIE LAB space
+                          (preserves the hue and saturation of *image*,
+                           changes only brightness/contrast)
+
+    Output:
+        Adjusted image with the same spatial dimensions as *image*.
+
+    Notes:
+        • If *reference* contains fewer frames than *image*, the first frame
+          of *reference* is used for all source frames.
+        • The matching is done per-frame (not across the batch).
+        • No external dependencies beyond NumPy and PyTorch.
+    """
+
+    @classmethod
+    def define_schema(cls) -> io.Schema:
+        return io.Schema(
+            node_id="MatchContrastImmacTools",
+            display_name="Match Contrast",
+            category="image/adjust",
+            inputs=[
+                io.Image.Input("image", display_name="image"),
+                io.Image.Input("reference", display_name="reference"),
+                io.Combo.Input(
+                    "channel_mode",
+                    options=["rgb", "luminance"],
+                    default="luminance",
+                    display_name="channel mode",
+                    tooltip=(
+                        "rgb: match each R/G/B channel independently.  "
+                        "luminance: match only the L channel in CIE LAB "
+                        "(keeps source colours, adjusts brightness/contrast)."
+                    ),
+                ),
+                io.Float.Input(
+                    "strength",
+                    default=1.0,
+                    min=0.0,
+                    max=1.0,
+                    step=0.01,
+                    display_name="strength",
+                    tooltip="Blend between the original image (0.0) and the fully matched image (1.0).",
+                ),
+            ],
+            outputs=[
+                io.Image.Output(display_name="image"),
+            ],
+        )
+
+    @classmethod
+    def check_lazy_status(cls, image, reference, channel_mode, strength):
+        return []
+
+    @classmethod
+    def execute(cls, image: torch.Tensor, reference: torch.Tensor, channel_mode: str, strength: float) -> io.NodeOutput:
+        # image / reference: [B, H, W, C] float32 in [0, 1]
+        B = image.shape[0]
+        ref_B = reference.shape[0]
+        s = float(np.clip(strength, 0.0, 1.0))
+
+        out_frames: list[np.ndarray] = []
+
+        for i in range(B):
+            src_np = image[i].cpu().numpy()               # [H, W, C]
+            # Broadcast reference: use frame i if available, else frame 0
+            ref_np = reference[min(i, ref_B - 1)].cpu().numpy()  # [H, W, C]
+
+            if channel_mode == "luminance":
+                matched = cls._match_luminance(src_np, ref_np)
+            else:  # "rgb"
+                matched = cls._match_rgb(src_np, ref_np)
+
+            # Blend: 0.0 = original, 1.0 = fully matched
+            blended = src_np * (1.0 - s) + matched * s
+            out_frames.append(blended)
+
+        result = torch.from_numpy(np.stack(out_frames, axis=0)).to(image.device)
+        return io.NodeOutput(result)
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _match_rgb(src: np.ndarray, ref: np.ndarray) -> np.ndarray:
+        """Match each RGB channel of *src* to *ref* independently."""
+        C = src.shape[-1]
+        channels = [
+            _match_histograms_channel(src[..., c], ref[..., c])
+            for c in range(C)
+        ]
+        return np.stack(channels, axis=-1)
+
+    @staticmethod
+    def _match_luminance(src: np.ndarray, ref: np.ndarray) -> np.ndarray:
+        """Match only the LAB L-channel of *src* to *ref*; keep src a/b."""
+        src_lab = _rgb_to_lab(src)   # [H, W, 3]
+        ref_lab = _rgb_to_lab(ref)
+
+        # Normalise L from [0, 100] to [0, 1] for the histogram helper
+        L_src = src_lab[..., 0] / 100.0
+        L_ref = ref_lab[..., 0] / 100.0
+
+        L_matched = _match_histograms_channel(L_src, L_ref) * 100.0  # back to [0,100]
+
+        out_lab = src_lab.copy()
+        out_lab[..., 0] = L_matched
+        return _lab_to_rgb(out_lab)
+
+
 # Set the web directory, any .js file in that directory will be loaded by the frontend as a frontend extension
 # WEB_DIRECTORY = "./somejs"
 
@@ -459,8 +672,9 @@ class ExampleExtension(ComfyExtension):
         return [
             ConcatenateSigmasNode,
             SpliceSigmasAtNode,
-                ResampleSigmas,
+            ResampleSigmas,
             SkipEveryNthImages,
+            MatchContrastNode,
             ForwardAnyNode,
             ForwardConditioningNode,
             ForwardModelNode,
