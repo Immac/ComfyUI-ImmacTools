@@ -1,9 +1,9 @@
-"""immac_tools package exports used by ComfyUI.
+"""ComfyUI-ImmacTools package exports used by ComfyUI.
 
 This module exposes the node registration mappings and the `WEB_DIRECTORY`
 constant expected by ComfyUI web extensions.
 """
-from .nodes import ConcatenateSigmasNode, SpliceSigmasAtNode, ResampleSigmas
+from .nodes import ConcatenateSigmasNode, SpliceSigmasAtNode, ResampleSigmas, SkipEveryNthImages
 from .forwarding_nodes import ForwardAnyNode, ForwardConditioningNode, ForwardModelNode
 
 # Mapping from node_id to node class
@@ -11,6 +11,7 @@ NODE_CLASS_MAPPINGS: dict[str, type] = {
     "ConcatenateSigmasImmacTools": ConcatenateSigmasNode,
     "SpliceSigmasAtImmacTools": SpliceSigmasAtNode,
     "ResampleSigmasImmacTools": ResampleSigmas,
+    "SkipEveryNthImagesImmacTools": SkipEveryNthImages,
     "ForwardAnyImmacTools": ForwardAnyNode,
     "ForwardConditioningImmacTools": ForwardConditioningNode,
     "ForwardModelImmacTools": ForwardModelNode,
@@ -21,6 +22,7 @@ NODE_DISPLAY_NAME_MAPPINGS: dict[str, str] = {
     "ConcatenateSigmasImmacTools": "Concatenate Sigmas Node",
     "SpliceSigmasAtImmacTools": "Splice Sigmas At Node",
     "ResampleSigmasImmacTools": "Resample Sigmas",
+    "SkipEveryNthImagesImmacTools": "Skip Every Nth Image",
     "ForwardAnyImmacTools": "Forward Any",
     "ForwardConditioningImmacTools": "Forward Conditioning",
     "ForwardModelImmacTools": "Forward Model",

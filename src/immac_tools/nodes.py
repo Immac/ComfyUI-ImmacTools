@@ -1,4 +1,5 @@
 from typing_extensions import override
+from collections.abc import Sequence
 
 from comfy_api.latest import ComfyExtension, io
 from .forwarding_nodes import ForwardAnyNode, ForwardConditioningNode, ForwardModelNode
@@ -377,6 +378,75 @@ class ResampleSigmas(io.ComfyNode):
         return io.NodeOutput(out)
 
 
+class SkipEveryNthImages(io.ComfyNode):
+    """
+    Skip every nth image in a batch.
+
+    Accepts a batch of images (list/tuple of frames or torch tensor with batch dim) and drops the nth item while preserving order of the rest. Outputs the filtered batch and the indices that were removed.
+    """
+
+    @classmethod
+    def define_schema(cls) -> io.Schema:
+        return io.Schema(
+            node_id="SkipEveryNthImagesImmacTools",
+            display_name="Skip Every Nth Image",
+            category="Example",
+            inputs=[
+                io.AnyType.Input("images", display_name="images", tooltip="Batch of images/frames (list or tensor)."),
+                io.Int.Input("n", default=2, min=1, tooltip="Skip every nth image; n<=0 yields empty output."),
+            ],
+            outputs=[
+                io.AnyType.Output("filtered", display_name="images"),
+                io.AnyType.Output("removed_indices", display_name="removed indices"),
+            ],
+        )
+
+    @classmethod
+    def check_lazy_status(cls, images, n):
+        return []
+
+    @classmethod
+    def execute(cls, images, n) -> io.NodeOutput:
+        # Normalize n; if invalid, treat as <=0 and drop everything
+        try:
+            step = int(n)
+        except Exception:
+            step = 0
+
+        # Torch tensor batch: slice along batch dim
+        if isinstance(images, torch.Tensor):
+            total = images.shape[0] if images.dim() > 0 else 0
+            if total == 0 or step <= 0:
+                empty = images.new_empty((0,) + tuple(images.shape[1:]))
+                removed = list(range(total))
+                return io.NodeOutput(empty, removed)
+
+            keep_mask = torch.ones(total, dtype=torch.bool, device=images.device)
+            keep_mask[step - 1 :: step] = False  # zero-based index for the nth elements
+            filtered = images[keep_mask] if total > 0 else images.new_empty((0,) + tuple(images.shape[1:]))
+            removed = [i for i in range(total) if (i + 1) % step == 0]
+            return io.NodeOutput(filtered, removed)
+
+        # Sequence (list/tuple) batch: iterate and filter
+        if isinstance(images, Sequence) and not isinstance(images, (str, bytes)):
+            total = len(images)
+            if step <= 0:
+                removed = list(range(total))
+                return io.NodeOutput([], removed)
+
+            kept = []
+            removed = []
+            for idx, img in enumerate(images):
+                if (idx + 1) % step == 0:
+                    removed.append(idx)
+                else:
+                    kept.append(img)
+            return io.NodeOutput(kept, removed)
+
+        # Fallback: unsupported type, pass through unchanged
+        return io.NodeOutput(images, [])
+
+
 # Set the web directory, any .js file in that directory will be loaded by the frontend as a frontend extension
 # WEB_DIRECTORY = "./somejs"
 
@@ -390,6 +460,7 @@ class ExampleExtension(ComfyExtension):
             ConcatenateSigmasNode,
             SpliceSigmasAtNode,
                 ResampleSigmas,
+            SkipEveryNthImages,
             ForwardAnyNode,
             ForwardConditioningNode,
             ForwardModelNode,

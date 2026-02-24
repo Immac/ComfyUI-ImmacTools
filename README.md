@@ -78,6 +78,13 @@ The main utility nodes included today are:
   - Outputs: `spliced_sigmas` (full), `first_part`, `second_part`
   - Behavior: picks a boundary on `sigmas_a` based on `splice` and combines `sigmas_a` and `sigmas_b` around that boundary. Accepts tensor or list inputs.
 
+- Skip Every Nth Image
+  - Class: `SkipEveryNthImagesImmacTools`
+  - Display name: `Skip Every Nth Image`
+  - Inputs: `images` (batch as list/tuple or torch tensor), `n` (int; n<=0 yields empty output)
+  - Outputs: filtered images batch, indices removed
+  - Behavior: drops every nth image while preserving the order of remaining items; returns the kept batch plus the zero-based indices that were removed.
+
 For full details see the source files mentioned above.
 
 
