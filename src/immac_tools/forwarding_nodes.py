@@ -1,6 +1,6 @@
 from typing_extensions import override
 
-from comfy_api.latest import ComfyExtension, io
+from comfy_api.latest import io
 import torch
 
 
@@ -108,11 +108,6 @@ class ForwardModelNode(io.ComfyNode):
 		# Pass-through: simply return the model as output
 		return io.NodeOutput(model)
 
-
-class ExampleForwardingExtension(ComfyExtension):
-	@override
-	async def get_node_list(self) -> list[type[io.ComfyNode]]:
-		return [ForwardAnyNode, ForwardConditioningNode, ForwardModelNode]
 
 
 

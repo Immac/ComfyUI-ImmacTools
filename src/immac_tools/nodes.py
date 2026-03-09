@@ -1,7 +1,7 @@
 from typing_extensions import override
 from collections.abc import Sequence
 
-from comfy_api.latest import ComfyExtension, io
+from comfy_api.latest import io
 from .forwarding_nodes import ForwardAnyNode, ForwardConditioningNode, ForwardModelNode
 import torch
 import numpy as np
@@ -660,25 +660,94 @@ class MatchContrastNode(io.ComfyNode):
         return _lab_to_rgb(out_lab)
 
 
+class SwitchNode(io.ComfyNode):
+    """
+    SwitchNode
+    A node that selects one of N optional inputs based on an integer index.
+    The number of visible input slots is controlled by the `num_inputs` widget.
+
+    Inputs:
+    - num_inputs: int — how many input slots are shown (1–20).
+    - index: int — which slot to return.
+        * -1 always returns None (regardless of other settings).
+        * Zero-indexed by default: 0 → first input, 1 → second input, …
+        * When one_indexed is True: 1 → first input, 2 → second input, … (0 returns None).
+    - one_indexed: bool — switches slot numbering to start at 1 instead of 0.
+    - input_0 … input_19: optional AnyType slots (visibility controlled by num_inputs).
+
+    Output:
+    - The value at the selected slot, or None.
+    """
+
+    _MAX_INPUTS = 20
+
+    @classmethod
+    def define_schema(cls) -> io.Schema:
+        return io.Schema(
+            node_id="SwitchImmacTools",
+            display_name="Switch",
+            category="immac/logic",
+            inputs=[
+                io.Int.Input(
+                    "num_inputs",
+                    default=5,
+                    min=1,
+                    max=cls._MAX_INPUTS,
+                    display_name="# inputs",
+                    tooltip="Number of visible input slots.",
+                ),
+                io.Int.Input(
+                    "index",
+                    default=0,
+                    min=-1,
+                    max=cls._MAX_INPUTS - 1,
+                    display_name="index",
+                    tooltip="Index of the input to select. -1 always returns None.",
+                ),
+                io.Boolean.Input(
+                    "one_indexed",
+                    default=False,
+                    display_name="1-indexed",
+                    tooltip=(
+                        "When enabled, index 1 selects the first input slot. "
+                        "Index 0 will return None when this is on."
+                    ),
+                ),
+                *[
+                    io.AnyType.Input(f"input_{i}", optional=True)
+                    for i in range(cls._MAX_INPUTS)
+                ],
+            ],
+            outputs=[
+                io.AnyType.Output(display_name="value"),
+            ],
+        )
+
+    @classmethod
+    def check_lazy_status(cls, num_inputs, index, one_indexed, **kwargs):
+        return []
+
+    @classmethod
+    def execute(cls, num_inputs: int, index: int, one_indexed: bool, **kwargs) -> io.NodeOutput:
+        # -1 always returns None
+        if index == -1:
+            return io.NodeOutput(None)
+
+        # Convert to zero-based internal slot index
+        actual_index = (index - 1) if one_indexed else index
+
+        # Negative slot (e.g. one_indexed=True and index=0) → None
+        if actual_index < 0:
+            return io.NodeOutput(None)
+
+        # Out of range
+        if actual_index >= num_inputs:
+            return io.NodeOutput(None)
+
+        value = kwargs.get(f"input_{actual_index}", None)
+        return io.NodeOutput(value)
+
+
 # Set the web directory, any .js file in that directory will be loaded by the frontend as a frontend extension
 # WEB_DIRECTORY = "./somejs"
 
-
-# Add custom API routes, using router
-
-class ExampleExtension(ComfyExtension):
-    @override
-    async def get_node_list(self) -> list[type[io.ComfyNode]]:
-        return [
-            ConcatenateSigmasNode,
-            SpliceSigmasAtNode,
-            ResampleSigmas,
-            SkipEveryNthImages,
-            MatchContrastNode,
-            ForwardAnyNode,
-            ForwardConditioningNode,
-            ForwardModelNode,
-        ]
-
-async def comfy_entrypoint() -> ExampleExtension:  # ComfyUI calls this to load your extension and its nodes.
-    return ExampleExtension()
